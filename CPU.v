@@ -31,7 +31,6 @@ input rst
     reg [31:0] PCin;
     wire [31:0] PCout;
     wire [3:0] ALU_Selection;
-    wire Zflag;
     wire [31:0] WriteData;
     wire BranchSel;
     wire [31:0] ReadData1;
@@ -42,6 +41,8 @@ input rst
     wire [31:0] shift_left_out;
     wire PC_Enable;
     wire [31:0] ALU_in;
+    wire cf, zf, vf, sf; 
+    wire [4:0]  shamt; 
    
     wire [31:0] PCout4;
     
@@ -65,7 +66,8 @@ input rst
     ImmGen immgen (Instruction , ImmGen );
     ALU_CU alucu ( ALUOp , Instruction , ALU_Selection );
     assign ALU_in = ALUSrc ? ImmGen : ReadData2 ;
-    n_bit_ALU alu (ReadData1 , ALU_in , ALU_Selection ,ALUoutput , Zflag);
+	
+    n_bit_ALU alu (ReadData1 , ALU_in, shamt ,ALUoutput , cf, zf, vf, sf, ALU_Selection);
     DataMem datamem(clk, MemRead , MemWrite , ALUoutput [7:2] , ReadData2 , ReadData_mem );
     assign WriteData = MemtoReg ? ReadData_mem : ALUoutput;
     nl_shift shifter(ImmGen , shift_left_out);
