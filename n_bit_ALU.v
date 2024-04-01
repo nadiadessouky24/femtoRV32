@@ -1,45 +1,44 @@
-`timescale 1ns / 1ps
-
-module n_bit_ALU #(parameter n=32)
-(
-    input [n-1:0] A,
-    input [n-1:0] B,
-    input [3:0] S,
-    output reg [n-1:0] ALUoutput,
-    output reg Zflag
+module prv32_ALU(
+	input   wire [31:0] a, b,
+	input   wire [4:0]  shamt,
+	output  reg  [31:0] r,
+	output  wire        cf, zf, vf, sf,
+	input   wire [3:0]  alufn
 );
 
-    wire [n-1:0] Bmux;
-    wire [n-1:0] sum;
-    wire [n-1:0] AND;
-    wire [n-1:0] OR;
+    wire [31:0] add, sub, op_b;
+    wire cfa, cfs;
     
-    assign Bmux = (S[2]==0)?  B:~B;
-    RCA rca(A,Bmux,S[2],sum);
+    assign op_b = (~b);
     
-   assign AND = A & B;
-   assign OR = A | B;
-   
-   always @(*) begin
-   
-       if(S == 4'b0000) begin
-       ALUoutput  = AND;
-       end
-       else if( S == 4'b0001) begin
-       ALUoutput = OR;
-       end 
-       else if (S == 4'b0010 | S == 4'b0110) begin
-       ALUoutput = sum;
-       end 
-       else begin
-       ALUoutput = 0; 
-       end 
-   end
-   
-   always @(*)
-   begin 
-      if (ALUoutput == 0) Zflag = 1;
-        else Zflag = 0;  
-   end 
-
+    assign {cf, add} = alufn[0] ? (a + op_b + 1'b1) : (a + b);
+    
+    assign zf = (add == 0);
+    assign sf = add[31];
+    assign vf = (a[31] ^ (op_b[31]) ^ add[31] ^ cf);
+    
+    wire[31:0] sh;
+    shifter shifter0(.a(a), .shamt(shamt), .type(alufn[1:0]),  .r(sh));
+    
+    always @ * begin
+        r = 0;
+        (* parallel_case *)
+        case (alufn)
+            // arithmetic
+            4'b00_00 : r = add;
+            4'b00_01 : r = add;
+            4'b00_11 : r = b;
+            // logic
+            4'b01_00:  r = a | b;
+            4'b01_01:  r = a & b;
+            4'b01_11:  r = a ^ b;
+            // shift
+            4'b10_00:  r=sh;
+            4'b10_01:  r=sh;
+            4'b10_10:  r=sh;
+            // slt & sltu
+            4'b11_01:  r = {31'b0,(sf != vf)}; 
+            4'b11_11:  r = {31'b0,(~cf)};            	
+        endcase
+    end
 endmodule
